@@ -39,24 +39,6 @@ export const viewport: Viewport = {
   themeColor: '#3d7a4a',
 }
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
-  return (
-    <html lang="fr">
-      <body className={`${inter.variable} font-sans antialiased`}>
-        <AuthProvider>
-          {children}
-          <Toaster position="top-center" />
-        </AuthProvider>
-        <Analytics />
-      </body>
-    </html>
-  )
-}
-
 import { SpeedInsights } from '@vercel/speed-insights/next';
  
 export default function RootLayout({
