@@ -24,6 +24,18 @@ begin
   )
   on conflict (id) do nothing;
 
+  -- If the user registered as a producer, create a producer_profiles record
+  IF coalesce((new.raw_user_meta_data ->> 'role')::text, 'consumer') = 'producer' THEN
+    INSERT INTO public.producer_profiles (user_id, business_name, description, created_at)
+    VALUES (
+      new.id,
+      coalesce(new.raw_user_meta_data ->> 'business_name', new.raw_user_meta_data ->> 'full_name'),
+      coalesce(new.raw_user_meta_data ->> 'description', null),
+      now()
+    )
+    ON CONFLICT (user_id) DO NOTHING;
+  END IF;
+
   return new;
 end;
 $$;

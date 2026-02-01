@@ -20,6 +20,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
+import { useAuth } from "@/lib/context/auth-context"
+import { toast } from "sonner"
 
 interface ProfileScreenProps {
   user: {
@@ -35,6 +37,17 @@ interface ProfileScreenProps {
 
 export function ProfileScreen({ user, onSwitchToProducer }: ProfileScreenProps) {
   const initials = user.name.split(" ").map(n => n[0]).join("").toUpperCase()
+  const { signOut } = useAuth()
+
+  const handleSignOut = async () => {
+    try {
+      await signOut()
+      toast.success("Deconnecte avec succes")
+    } catch (err: any) {
+      console.error("Sign out error:", err)
+      toast.error(err?.message || "Erreur de deconnexion")
+    }
+  }
 
   const menuItems = [
     { icon: Package, label: "Mes commandes", badge: "3 en cours", href: "#" },
@@ -140,7 +153,7 @@ export function ProfileScreen({ user, onSwitchToProducer }: ProfileScreenProps) 
         </Card>
 
         {/* Logout */}
-        <Button variant="outline" className="w-full text-destructive hover:text-destructive bg-transparent">
+        <Button variant="outline" className="w-full text-destructive hover:text-destructive bg-transparent" onClick={handleSignOut}>
           <LogOut className="h-4 w-4 mr-2" />
           Se deconnecter
         </Button>
