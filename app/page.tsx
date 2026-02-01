@@ -342,6 +342,7 @@ function AppContent() {
       stock: number;
       isOrganic: boolean;
       images?: string[];
+      image?: File; // single image file from modal
       minOrder?: number;
     }) => {
       if (!user) return;
@@ -391,6 +392,27 @@ function AppContent() {
 
         const categoryEnum = toCategoryEnumClient(category.name);
 
+        // If image file provided, upload it to server first
+        let imageUrls: string[] = formData.images || [];
+        if (formData.image) {
+          try {
+            const fd = new FormData();
+            fd.append("file", formData.image);
+            const res = await fetch("/api/upload", { method: "POST", body: fd });
+            const payload = await res.json();
+            if (!res.ok) {
+              console.error("Image upload failed:", payload);
+              toast.error(payload.error || "Erreur lors de l'upload de l'image");
+              return;
+            }
+            imageUrls = [payload.data.url];
+          } catch (err) {
+            console.error("Image upload error:", err);
+            toast.error("Erreur lors de l'upload de l'image");
+            return;
+          }
+        }
+
         const { data: insertedProduct, error: insertError } = await supabase
           .from("products")
           .insert({
@@ -402,7 +424,7 @@ function AppContent() {
             stock_quantity: formData.stock,
             min_order_quantity: formData.minOrder || 1,
             is_bio: formData.isOrganic,
-            images: formData.images || [],
+            images: imageUrls,
             producer_id: producerProfile.id,
           })
           .select()
