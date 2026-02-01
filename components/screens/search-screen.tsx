@@ -24,8 +24,9 @@ interface SearchScreenProps {
   producers: Producer[]
   onAddToCart: (product: Product) => void
   onViewProduct: (product: Product) => void
-  onContactProducer: (producer: Producer) => void
-  onViewProducer: (producer: Producer) => void
+  // handlers now accept a producer id (string)
+  onContactProducer: (producerId: string) => void
+  onViewProducer: (producerId: string) => void
 }
 
 export function SearchScreen({
@@ -199,8 +200,8 @@ export function SearchScreen({
               <ProducerCard
                 key={producer.id}
                 producer={producer}
-                onContact={onContactProducer}
-                onViewProfile={onViewProducer}
+                onContact={(id) => onContactProducer(id)}
+                onViewProfile={(id) => onViewProducer(id)}
               />
             ))}
           </div>

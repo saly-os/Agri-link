@@ -71,6 +71,9 @@ function AppContent() {
   const conversations = conversationsData?.data || [];
   const orders = ordersData?.data || [];
 
+  // Local UI state for opening a conversation created from producer card
+  const [initialConversation, setInitialConversation] = useState<any | null>(null);
+
   // My products (for producer dashboard)
   const { data: myProductsData } = useMyProducts();
   const myProducts = myProductsData?.data || [];
@@ -126,6 +129,83 @@ function AppContent() {
     },
     [removeFromCart]
   );
+
+  // Open or create a conversation with a producer and switch to messages tab
+  const handleContactProducer = async (producerId: string) => {
+    if (!user) {
+      router.push("/auth/login");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ producer_id: producerId }),
+      });
+      const payload = await res.json();
+      if (!res.ok) {
+        toast.error(payload.error || "Impossible de demarrer la conversation");
+        return;
+      }
+
+      // Revalidate conversations and set the initial conversation with joined data so MessagesScreen has the other party's info
+      mutate("/api/conversations");
+      try {
+        const res2 = await fetch("/api/conversations");
+        if (res2.ok) {
+          const json = await res2.json();
+          const full = json.data.find((x: any) => x.id === payload.data.id);
+          if (full) {
+            const isCurrentProducer = profile?.role === "producer";
+            const other = isCurrentProducer
+              ? {
+                  name: (full.consumer as any)?.full_name || "Client",
+                  avatar: (full.consumer as any)?.avatar_url || "/placeholder.svg",
+                }
+              : {
+                  name:
+                    (full.producer as any)?.business_name || "Producteur",
+                  avatar:
+                    (full.producer as any)?.profile?.avatar_url || "/placeholder.svg",
+                };
+
+            setInitialConversation({
+              id: full.id,
+              producer: { name: other.name, avatar: other.avatar, isOnline: false },
+              lastMessage: full.last_message || "",
+              timestamp: full.last_message_at
+                ? new Date(full.last_message_at).toLocaleTimeString("fr-FR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "",
+              unread: full.unread_count || 0,
+              messages: [],
+            });
+          } else {
+            setInitialConversation(payload.data);
+          }
+        } else {
+          setInitialConversation(payload.data);
+        }
+      } catch (err) {
+        console.error("Error fetching conversations after create:", err);
+        setInitialConversation(payload.data);
+      }
+
+      setActiveTab("messages");
+      toast.success("Conversation ouverte");
+    } catch (err) {
+      console.error("Contact producer error:", err);
+      toast.error("Erreur lors de l'ouverture de la conversation");
+    }
+  };
+
+  // Navigate to producer page showing their products
+  const handleViewProducer = (producerId: string) => {
+    router.push(`/producers/${producerId}`);
+  };
 
   const handleRemoveFromCart = useCallback(
     async (productId: string) => {
@@ -236,28 +316,44 @@ function AppContent() {
     phone: (p.profile as { phone?: string })?.phone || "",
   }));
 
-  // Transform conversations for MessagesScreen
-  const transformedConversations = conversations.map((c) => ({
-    id: c.id,
-    producer: {
-      name:
-        (c.producer as { business_name?: string })?.business_name ||
-        "Producteur",
-      avatar:
-        (c.producer as { profile?: { avatar_url?: string } })?.profile
-          ?.avatar_url || "/placeholder.svg",
-      isOnline: false,
-    },
-    lastMessage: c.last_message || "",
-    timestamp: c.last_message_at
-      ? new Date(c.last_message_at).toLocaleTimeString("fr-FR", {
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      : "",
-    unread: (c as { unread_count?: number }).unread_count || 0,
-    messages: [],
-  }));
+  // Transform conversations for MessagesScreen (show the OTHER party based on current user role)
+  const transformedConversations = conversations.map((c) => {
+    const isCurrentProducer = profile?.role === "producer";
+
+    // If the current user is a producer, show the consumer as the other party, otherwise show the producer info
+    const other = isCurrentProducer
+      ? {
+          name: (c.consumer as { full_name?: string })?.full_name || "Client",
+          avatar: (c.consumer as { avatar_url?: string })?.avatar_url || "/placeholder.svg",
+        }
+      : {
+          name:
+            (c.producer as { business_name?: string })?.business_name || "Producteur",
+          avatar:
+            (c.producer as { profile?: { avatar_url?: string } })?.profile
+              ?.avatar_url || "/placeholder.svg",
+        };
+
+    return {
+      id: c.id,
+      producer: {
+        name: other.name,
+        avatar: other.avatar,
+        isOnline: false,
+      },
+      lastMessage: c.last_message || "",
+      timestamp: c.last_message_at
+        ? new Date(c.last_message_at).toLocaleTimeString("fr-FR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "",
+      unread: (c as { unread_count?: number }).unread_count || 0,
+      messages: [],
+    };
+  });
+
+  // (initialConversation state is declared above)
 
   // User data for profile
   const userData = {
@@ -603,13 +699,14 @@ function AppContent() {
                         if (original) handleAddToCart(original);
                       }}
                       onViewProduct={() => {}}
-                      onContactProducer={() => {}}
-                      onViewProducer={() => {}}
+                      onContactProducer={handleContactProducer}
+                      onViewProducer={handleViewProducer}
                     />
                   )}
                   {activeTab === "messages" && (
                     <MessagesScreen
                       conversations={transformedConversations}
+                      initialConversation={initialConversation}
                     />
                   )}
                   {activeTab === "profile" && (
@@ -666,8 +763,8 @@ function AppContent() {
                   if (original) handleAddToCart(original);
                 }}
                 onViewProduct={() => {}}
-                onContactProducer={() => {}}
-                onViewProducer={() => {}}
+                onContactProducer={handleContactProducer}
+                onViewProducer={handleViewProducer}
               />
             )}
             {activeTab === "messages" && (

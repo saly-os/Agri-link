@@ -21,8 +21,9 @@ export interface Producer {
 
 interface ProducerCardProps {
   producer: Producer
-  onContact: (producer: Producer) => void
-  onViewProfile: (producer: Producer) => void
+  // handlers now receive the producer id (string)
+  onContact: (producerId: string) => void
+  onViewProfile: (producerId: string) => void
 }
 
 export function ProducerCard({ producer, onContact, onViewProfile }: ProducerCardProps) {
@@ -96,7 +97,7 @@ export function ProducerCard({ producer, onContact, onViewProfile }: ProducerCar
             variant="outline"
             size="sm"
             className="flex-1 gap-1.5 bg-transparent"
-            onClick={() => onContact(producer)}
+            onClick={() => onContact(producer.id)}
           >
             <MessageCircle className="h-4 w-4" />
             Message
@@ -104,7 +105,7 @@ export function ProducerCard({ producer, onContact, onViewProfile }: ProducerCar
           <Button
             size="sm"
             className="flex-1 gap-1.5"
-            onClick={() => onViewProfile(producer)}
+            onClick={() => onViewProfile(producer.id)}
           >
             Voir produits
             <ChevronRight className="h-4 w-4" />
