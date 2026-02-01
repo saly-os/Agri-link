@@ -62,14 +62,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get public URL
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from("products").getPublicUrl(data.path);
+    // Try to create a signed URL (valid for 7 days). Fall back to public URL if needed.
+    const { data: signedData, error: signedError } = await supabase.storage
+      .from("products")
+      .createSignedUrl(data.path, 60 * 60 * 24 * 7);
+
+    if (signedError) {
+      console.warn("Could not create signed URL, falling back to public URL:", signedError);
+    }
+
+    const signedUrl = (signedData as any)?.signedURL || (signedData as any)?.signedUrl;
+
+    const publicResult = supabase.storage.from("products").getPublicUrl(data.path);
+    const publicUrl = (publicResult as any)?.data?.publicUrl;
+
+    const url = signedUrl || publicUrl;
 
     return NextResponse.json({
       data: {
-        url: publicUrl,
+        url,
         path: data.path,
       },
     });
